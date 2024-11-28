@@ -24,7 +24,7 @@ DataType string_to_datatype(std::string type) {
     return DataType::TEXT;
 }
 
-std::string csv_dumps(Table table) {
+std::string csv_dumps(Table table, bool with_type_info) {
     std::ostringstream ss;
     
     // Headers
@@ -34,15 +34,17 @@ std::string csv_dumps(Table table) {
     }
     ss << '\n';
     
-    // Types
-    for(size_t i = 0; i < table.schema.elements.size(); i++) {
-        if(i > 0) ss << ',';
-        ss << datatype_to_string(table.schema[i]);
+    // Types (only if with_type_info is true)
+    if (with_type_info) {
+        for(size_t i = 0; i < table.schema.elements.size(); i++) {
+            if(i > 0) ss << ',';
+            ss << datatype_to_string(table.schema[i]);
+        }
+        ss << '\n';
     }
-    ss << '\n';
     
     // Data
-    for(auto& row : table.rows) {
+    for(auto &row : table.rows) {
         for(size_t i = 0; i < row.cells.elements.size(); i++) {
             if(i > 0) ss << ',';
             ss << std::string(row.cells[i]);
@@ -52,19 +54,38 @@ std::string csv_dumps(Table table) {
     return ss.str();
 }
 
-Table csv_loads(std::string csv_str, std::string table_name) {
+Table csv_loads(std::string csv_str, std::string table_name, bool with_type_info) {
     std::stringstream ss(csv_str);
     std::string line;
     
     std::getline(ss, line);
     auto headers = split_csv(line);
     
+    // Try to read types if present
     std::getline(ss, line);
     auto types = split_csv(line);
+    bool has_types = true;
+    for(auto type : types) {
+        if(type != "INTEGER" && type != "FLOAT" && type != "TEXT") {
+            has_types = false;
+            break;
+        }
+    }
     
     Schema schema;
-    for(size_t i = 0; i < headers.size(); i++) {
-        schema[headers[i]] = string_to_datatype(types[i]);
+    if(has_types) {
+        for(size_t i = 0; i < headers.size(); i++) {
+            schema[headers[i]] = string_to_datatype(types[i]);
+        }
+    } else {
+        // If no type info, default to TEXT
+        for(auto header : headers) {
+            schema[header] = DataType::TEXT;
+        }
+        // Reset stream position to process the line as data
+        ss.clear();
+        ss.seekg(0);
+        std::getline(ss, line); // Skip header
     }
     
     Table table(table_name, schema);
@@ -81,13 +102,14 @@ Table csv_loads(std::string csv_str, std::string table_name) {
     return table;
 }
 
-void csv_dump(Table table, std::string filepath) {
-    std::ofstream(filepath) << csv_dumps(table);
+void csv_dump(Table table, std::string filepath, bool with_type_info) {
+    
+    std::ofstream(filepath) << csv_dumps(table, with_type_info);
 }
 
-Table csv_load(std::string filepath, std::string table_name) {
+Table csv_load(std::string filepath, std::string table_name, bool with_type_info) {
     std::ifstream file(filepath);
     std::stringstream buffer;
     buffer << file.rdbuf();
-    return csv_loads(buffer.str(), table_name);
+    return csv_loads(buffer.str(), table_name, with_type_info);
 }

@@ -1,13 +1,16 @@
-//
-//  disk_storage.hpp
-//  miniSql_proj_finalPush
-//
-//  Created by 司徒健飞 on 2024/11/28.
-//
+#ifndef DISK_STORAGE_H
+#define DISK_STORAGE_H
 
-#ifndef disk_storage_hpp
-#define disk_storage_hpp
+#include "database.hpp"
+#include <filesystem>
 
-#include <stdio.h>
+class DiskStorage {
+public:
+    void save_database(Database db, std::string name);
+    Database load_database(std::string name);
+    void delete_database(std::string name);
+    std::vector<std::string> list_databases();
+};
 
-#endif /* disk_storage_hpp */
+
+#endif

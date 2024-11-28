@@ -15,11 +15,16 @@ public:
     Table() = default;
     Table(std::string name, Schema schema);
     
+    // Copy/Move semantics
+    Table(const Table& other);
+    Table(Table&& other) noexcept;
+    Table& operator=(const Table& other);
+    Table& operator=(Table&& other) noexcept;
+    
     void append_row(Row row);
     Table where(ExprPtr condition);
     void delete_where(ExprPtr condition);
     void update_where(ExprPtr condition, std::string col_name, ExprPtr new_value);
     Table select(std::vector<std::string> cols);
 };
-
 #endif

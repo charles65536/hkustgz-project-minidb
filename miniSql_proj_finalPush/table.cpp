@@ -1,6 +1,27 @@
 #include "table.hpp"
 
+#include "table.hpp"
+
 Table::Table(std::string name, Schema schema) : name(name), schema(schema) {}
+
+Table::Table(const Table& other) : name(other.name), schema(other.schema), rows(other.rows) {}
+
+Table::Table(Table&& other) noexcept
+    : name(std::move(other.name)), schema(std::move(other.schema)), rows(std::move(other.rows)) {}
+
+Table& Table::operator=(const Table& other) {
+    name = other.name;
+    schema = other.schema;
+    rows = other.rows;
+    return *this;
+}
+
+Table& Table::operator=(Table&& other) noexcept {
+    name = std::move(other.name);
+    schema = std::move(other.schema);
+    rows = std::move(other.rows);
+    return *this;
+}
 
 void Table::append_row(Row row) {
     if(row.schema.elements.size() != schema.elements.size()) {

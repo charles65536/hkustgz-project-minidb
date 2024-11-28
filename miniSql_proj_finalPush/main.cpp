@@ -1,38 +1,41 @@
-// main.cpp
-#include "table.hpp"
-#include "csv_manip.hpp"
+#include "disk_storage.hpp"
 #include <iostream>
 
+void print_table_info(Table& table) {
+    std::cout << "Table " << table.name << " has " << table.rows.size() << " rows\n";
+}
+
 int main() {
-    Schema schema;
-    schema["id"] = DataType::INTEGER;
-    schema["name"] = DataType::TEXT;
-    schema["score"] = DataType::INTEGER;
+    DiskStorage storage;
+    Database db;
     
-    Table students("students", schema);
+    Schema user_schema;
+    user_schema["id"] = DataType::INTEGER;
+    user_schema["name"] = DataType::TEXT;
+    user_schema["balance"] = DataType::FLOAT;
+    auto& users = db.create_table("users", user_schema);
     
-    Row r1(schema);
-    r1.cells["id"] = CellData(1);
-    r1.cells["name"] = CellData("Alice");
-    r1.cells["score"] = CellData(95);
-    students.append_row(r1);
+    Row u1(user_schema);
+    u1.cells["id"] = CellData(1);
+    u1.cells["name"] = CellData("Alice");
+    u1.cells["balance"] = CellData(1000.50);
+    users.append_row(u1);
     
-    Row r2(schema);
-    r2.cells["id"] = CellData(2);
-    r2.cells["name"] = CellData("Bob");
-    r2.cells["score"] = CellData(87);
-    students.append_row(r2);
+    Row u2(user_schema);
+    u2.cells["id"] = CellData(2);
+    u2.cells["name"] = CellData("Bob");
+    u2.cells["balance"] = CellData(2500.75);
+    users.append_row(u2);
     
-    // Test operations
-    auto high_scores = students.where(col("score") > 90);
-    std::cout << "High scores:\n" << csv_dumps(high_scores);
     
-    students.update_where(col("score") < literal(CellData(90)),
-                         "score",
-                         col("score") + literal(CellData(5)));
-                         
-    students.delete_where(col("id") == literal(CellData(1)));
-    
-    std::cout << "\nFinal table:\n" << csv_dumps(students);
-    return 0;
+        std::cout << "After create: " << users.rows.size() << " rows\n";
+        
+        users.append_row(u1);
+        std::cout << "After append 1: " << users.rows.size() << " rows\n";
+        
+        users.append_row(u2);
+        std::cout << "After append 2: " << users.rows.size() << " rows\n";
+        
+        std::cout << "Table in db before save: " << db.tables["users"].rows.size() << " rows\n";
+        storage.save_database(db, "testdb");
 }

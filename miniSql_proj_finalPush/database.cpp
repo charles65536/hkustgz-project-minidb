@@ -1,14 +1,14 @@
 #include "database.hpp"
 
-Table Database::create_table(std::string name, Schema schema) {
-    if (tables.find(name) != tables.end()) {
-        throw std::runtime_error("Table already exists: " + name);
+Table& Database::create_table(std::string name, Schema schema) {
+    if (has_table(name)) {
+        throw std::runtime_error("Table \"" + name + "\" already exists");
     }
-    tables[name] = Table(name, schema);
-    return tables[name];
+    auto [it, success] = tables.emplace(name, Table(name, schema));
+    return it->second;
 }
 
-Table Database::get_table(std::string name) {
+Table &Database::get_table(std::string name) {
     auto it = tables.find(name);
     if (it == tables.end()) {
         throw std::runtime_error("Table not found: " + name);
