@@ -5,6 +5,8 @@
 #include "schema.hpp"
 #include "named_vector.hpp"
 #include "table.hpp"
+#include "database.hpp"
+#include "disk_storage.hpp"
 #include <vector>
 #include <memory>
 #include <sstream>
@@ -65,7 +67,7 @@ class SqlInterpreter {
 public:
     token::TokenList tokens;
     token::TokenList::iterator cursor;
-    Database* current_db = nullptr;
+    std::shared_ptr<Database> current_db;
     std::ofstream* output = nullptr;
     DiskStorage storage;
     

@@ -25,18 +25,25 @@ void DiskStorage::save_database(Database db, std::string name) {
 }
  */
 
-Database DiskStorage::load_database(std::string name) {
-    Database db;
+// disk_storage.cpp
+std::shared_ptr<Database> DiskStorage::create_database(std::string name) {
+    fs::path db_path = fs::path("./dbs") / name;
+    fs::create_directories(db_path);
+    return std::make_shared<Database>();
+}
+
+std::shared_ptr<Database> DiskStorage::load_database(std::string name) {
     fs::path db_path = fs::path("./dbs") / name;
     
     if (!fs::exists(db_path)) {
         throw std::runtime_error("Database not found: " + name);
     }
     
+    auto db = std::make_shared<Database>();
     for (auto entry : fs::directory_iterator(db_path)) {
         if (entry.path().extension() == ".csv") {
             std::string table_name = entry.path().stem().string();
-            db.tables[table_name] = csv_load(entry.path().string(), table_name);
+            db->tables[table_name] = csv_load(entry.path().string(), table_name);
         }
     }
     return db;

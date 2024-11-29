@@ -7,53 +7,6 @@
 #include "expr.hpp"
 #include "sql_handle.hpp"
 
-namespace token {
-
-class Token {
-public:
-    virtual ~Token() = default;
-    virtual std::string str() const = 0;
-};
-
-using TokenPtr = std::shared_ptr<Token>;
-using TokenList = std::vector<TokenPtr>;
-
-class Keyword : public Token {
-    std::string value;
-public:
-    Keyword(std::string v) : value(std::move(v)) {}
-    std::string str() const override { return value; }
-};
-
-class Identifier : public Token {
-    std::string value;
-public:
-    Identifier(std::string v) : value(std::move(v)) {}
-    std::string str() const override { return value; }
-};
-
-class Literal : public Token {
-    std::string value;
-public:
-    Literal(std::string v) : value(std::move(v)) {}
-    std::string str() const override { return value; }
-};
-
-class Operator : public Token {
-    std::string value;
-public:
-    Operator(std::string v) : value(std::move(v)) {}
-    std::string str() const override { return value; }
-};
-
-class Punctuation : public Token {
-    char value;
-public:
-    Punctuation(char v) : value(v) {}
-    std::string str() const override { return std::string(1, value); }
-};
-
-} // namespace token
 
 std::string cleanse(std::string input) {
     std::stringstream ss;
@@ -287,7 +240,7 @@ Schema SqlInterpreter::read_schema() {
    return schema;
 }
 
-std::vector<std::string> SqlInterpreter::read_select() {
+std::vector<std::string> SqlInterpreter::read_select_list() {
    std::vector<std::string> columns;
    
    while (true) {
@@ -308,8 +261,8 @@ std::vector<std::string> SqlInterpreter::read_select() {
    return columns;
 }
 
-std::vector<NamedVector<ExprPtr>> SqlInterpreter::read_set() {
-   std::vector<NamedVector<ExprPtr>> assignments;
+NamedVector<ExprPtr> SqlInterpreter::read_set() {
+   NamedVector<ExprPtr> assignments;
    
    while (true) {
        if (typeid(*peek()) != typeid(token::Identifier)) {
@@ -324,7 +277,7 @@ std::vector<NamedVector<ExprPtr>> SqlInterpreter::read_set() {
        cursor++;
        
        auto expr = read_expr();
-       assignments.emplace_back(col, expr);
+       assignments[col] = expr;
 
        if (typeid(*peek()) == typeid(token::Punctuation) &&
            std::dynamic_pointer_cast<token::Punctuation>(peek())->str() == ",") {
@@ -385,7 +338,7 @@ void SqlInterpreter::parse_use() {
     }
     auto name = read_token<token::Identifier>().str();
     expect(";");
-    current_db = &storage.load_database(name);
+    current_db = storage.load_database(name);
 }
 
 void SqlInterpreter::expect(const std::string& str) {
@@ -394,4 +347,5 @@ void SqlInterpreter::expect(const std::string& str) {
     }
     cursor++;
 }
+
 
