@@ -57,6 +57,17 @@ void Table::update_where(ExprPtr condition, std::string col_name, ExprPtr new_va
     }
 }
 
+// table.cpp
+void Table::update_where(ExprPtr condition, NamedVector<ExprPtr> values) {
+    for (auto& row : rows) {
+        if (condition->truthy(row)) {
+            for (auto& value : values.elements) {
+                row.cells[value.name] = value.value->eval(row);
+            }
+        }
+    }
+}
+
 Table Table::select(std::vector<std::string> cols) {
     Schema new_schema;
     for(auto& col : cols) {
@@ -72,4 +83,33 @@ Table Table::select(std::vector<std::string> cols) {
         result.rows.push_back(new_row);
     }
     return result;
+}
+
+// table.cpp
+Table Table::join(Table& other) {
+    Schema joined_schema;
+    
+    for (const auto& elem : schema.elements) {
+        joined_schema[name + "." + elem.name] = elem.value;
+    }
+    for (const auto& elem : other.schema.elements) {
+        joined_schema[other.name + "." + elem.name] = elem.value;
+    }
+    
+    Table joined(name + "_x_" + other.name, joined_schema);
+    
+    for (auto& row1 : rows) {
+        for (auto& row2 : other.rows) {
+            Row joined_row(joined_schema);
+            for (const auto& elem : schema.elements) {
+                joined_row.cells[name + "." + elem.name] = row1.cells[elem.name];
+            }
+            for (const auto& elem : other.schema.elements) {
+                joined_row.cells[other.name + "." + elem.name] = row2.cells[elem.name];
+            }
+            joined.rows.push_back(joined_row);
+        }
+    }
+    
+    return joined;
 }

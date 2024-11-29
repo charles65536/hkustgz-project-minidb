@@ -25,7 +25,11 @@ public:
     Table where(ExprPtr condition);
     void delete_where(ExprPtr condition);
     void update_where(ExprPtr condition, std::string col_name, ExprPtr new_value);
+    // table.hpp
+    void update_where(ExprPtr condition, NamedVector<ExprPtr> values);
     Table select(std::vector<std::string> cols);
+    // table.hpp
+    Table join(Table& other);
 };
 #endif
 

@@ -1,7 +1,3 @@
-
-#ifndef SQL_HANDLE_H
-#define SQL_HANDLE_H
-
 #include <string>
 #include <memory>
 #include <vector>
@@ -215,5 +211,187 @@ ExprPtr SqlInterpreter::parse_expr_range(token::TokenList::iterator start, token
     throw std::runtime_error("Unknown operator: " + op);
 }
 
+// sql_handle.cpp
+std::vector<CellData> SqlInterpreter::read_values() {
+   std::vector<CellData> values;
+   
+   if (typeid(*peek()) != typeid(token::Punctuation) ||
+       std::dynamic_pointer_cast<token::Punctuation>(peek())->str() != "(") {
+       throw std::runtime_error("Expected ( after VALUES");
+   }
+   cursor++;
 
-#endif
+   while (true) {
+       if (typeid(*peek()) != typeid(token::Literal)) {
+           throw std::runtime_error("Expected literal in VALUES");
+       }
+       values.push_back(inferred_cell(std::dynamic_pointer_cast<token::Literal>(peek())->str()));
+       cursor++;
+
+       if (typeid(*peek()) == typeid(token::Punctuation)) {
+           auto p = std::dynamic_pointer_cast<token::Punctuation>(peek())->str();
+           if (p == ")") {
+               cursor++;
+               break;
+           }
+           if (p == ",") {
+               cursor++;
+               continue;
+           }
+       }
+       throw std::runtime_error("Expected , or ) in VALUES");
+   }
+   
+   return values;
+}
+
+Schema SqlInterpreter::read_schema() {
+   if (typeid(*peek()) != typeid(token::Punctuation) ||
+       std::dynamic_pointer_cast<token::Punctuation>(peek())->str() != "(") {
+       throw std::runtime_error("Expected ( after CREATE TABLE");
+   }
+   cursor++;
+   
+   Schema schema;
+   while (true) {
+       if (typeid(*peek()) != typeid(token::Identifier)) {
+           throw std::runtime_error("Expected column name");
+       }
+       auto col_name = std::dynamic_pointer_cast<token::Identifier>(peek())->str();
+       cursor++;
+       
+       if (typeid(*peek()) != typeid(token::Keyword)) {
+           throw std::runtime_error("Expected type after column name");
+       }
+       auto type_str = std::dynamic_pointer_cast<token::Keyword>(peek())->str();
+       if (type_str == "INTEGER") schema[col_name] = DataType::INTEGER;
+       else if (type_str == "FLOAT") schema[col_name] = DataType::FLOAT;
+       else if (type_str == "TEXT") schema[col_name] = DataType::TEXT;
+       else throw std::runtime_error("Unknown type: " + type_str);
+       cursor++;
+
+       if (typeid(*peek()) == typeid(token::Punctuation)) {
+           auto p = std::dynamic_pointer_cast<token::Punctuation>(peek())->str();
+           if (p == ")") {
+               cursor++;
+               break;
+           }
+           if (p == ",") {
+               cursor++;
+               continue;
+           }
+       }
+       throw std::runtime_error("Expected , or ) in schema");
+   }
+   
+   return schema;
+}
+
+std::vector<std::string> SqlInterpreter::read_select() {
+   std::vector<std::string> columns;
+   
+   while (true) {
+       if (typeid(*peek()) != typeid(token::Identifier)) {
+           throw std::runtime_error("Expected column name in SELECT");
+       }
+       columns.push_back(std::dynamic_pointer_cast<token::Identifier>(peek())->str());
+       cursor++;
+
+       if (typeid(*peek()) == typeid(token::Punctuation) &&
+           std::dynamic_pointer_cast<token::Punctuation>(peek())->str() == ",") {
+           cursor++;
+           continue;
+       }
+       break;
+   }
+   
+   return columns;
+}
+
+std::vector<NamedVector<ExprPtr>> SqlInterpreter::read_set() {
+   std::vector<NamedVector<ExprPtr>> assignments;
+   
+   while (true) {
+       if (typeid(*peek()) != typeid(token::Identifier)) {
+           throw std::runtime_error("Expected column name in SET");
+       }
+       auto col = std::dynamic_pointer_cast<token::Identifier>(peek())->str();
+       cursor++;
+       
+       if (std::dynamic_pointer_cast<token::Keyword>(peek())->str() != "INTO") {
+           throw std::runtime_error("Expected INTO after column name");
+       }
+       cursor++;
+       
+       auto expr = read_expr();
+       assignments.emplace_back(col, expr);
+
+       if (typeid(*peek()) == typeid(token::Punctuation) &&
+           std::dynamic_pointer_cast<token::Punctuation>(peek())->str() == ",") {
+           cursor++;
+           continue;
+       }
+       break;
+   }
+   
+   return assignments;
+}
+
+// sql_handle.cpp
+void SqlInterpreter::execute(const std::string& sql) {
+    tokens = tokenize(sql);
+    cursor = tokens.begin();
+    
+    while (cursor != tokens.end()) {
+        if (typeid(*peek()) != typeid(token::Keyword)) {
+            throw std::runtime_error("Expected command keyword");
+        }
+        
+        auto cmd = std::dynamic_pointer_cast<token::Keyword>(peek())->str();
+        cursor++;
+        
+        if (cmd == "CREATE") parse_create();
+        else if (cmd == "USE") parse_use();
+        else if (cmd == "DROP") parse_drop();
+        else if (cmd == "INSERT") parse_insert();
+        else if (cmd == "SELECT") parse_select();
+        else if (cmd == "UPDATE") parse_update();
+        else if (cmd == "DELETE") parse_delete();
+        else throw std::runtime_error("Unknown command: " + cmd);
+    }
+}
+
+void SqlInterpreter::parse_create() {
+    auto type = read_token<token::Keyword>().str();
+    
+    if (type == "DATABASE") {
+        auto name = read_token<token::Identifier>().str();
+        expect(";");
+        storage.create_database(name);
+    }
+    else if (type == "TABLE") {
+        if (!current_db) throw std::runtime_error("No database selected");
+        auto name = read_token<token::Identifier>().str();
+        auto schema = read_schema();
+        expect(";");
+        current_db->create_table(name, schema);
+    }
+    else throw std::runtime_error("Expected DATABASE or TABLE after CREATE");
+}
+
+void SqlInterpreter::parse_use() {
+    if (read_token<token::Keyword>().str() != "DATABASE") {
+        throw std::runtime_error("Expected DATABASE after USE");
+    }
+    auto name = read_token<token::Identifier>().str();
+    expect(";");
+    current_db = &storage.load_database(name);
+}
+
+void SqlInterpreter::expect(const std::string& str) {
+    if (cursor == tokens.end() || peek()->str() != str) {
+        throw std::runtime_error("Expected: " + str);
+    }
+    cursor++;
+}
+

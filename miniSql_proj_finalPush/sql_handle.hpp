@@ -4,6 +4,7 @@
 #include "expr.hpp"
 #include "schema.hpp"
 #include "named_vector.hpp"
+#include "table.hpp"
 #include <vector>
 #include <memory>
 #include <sstream>
@@ -64,19 +65,41 @@ class SqlInterpreter {
 public:
     token::TokenList tokens;
     token::TokenList::iterator cursor;
+    Database* current_db = nullptr;
+    std::ofstream* output = nullptr;
+    DiskStorage storage;
     
     const token::TokenPtr& peek();
     
     template<typename T>
     T read_token();
+
+    void expect(const std::string& str);
     
+    // Statement parsers
+    void execute(const std::string& sql);
+    void execute_file(const std::string& filepath);
+    void parse_create();
+    void parse_use();
+    void parse_drop();
+    void parse_insert();
+    void parse_select();
+    void parse_update();
+    void parse_delete();
+    
+    // Expression and clause parsing
     ExprPtr read_expr();
     ExprPtr parse_expr_range(token::TokenList::iterator start, token::TokenList::iterator end);
     ExprPtr read_condition();
-    std::vector<CellData> read_values();
     Schema read_schema();
-    std::vector<std::string> read_select();
-    std::vector<NamedVector<ExprPtr>> read_set();
+    std::vector<std::string> read_select_list();
+    std::vector<CellData> read_values();
+    NamedVector<ExprPtr> read_set();
+
+    // Output handling
+    void set_output(std::ofstream& out);
+    void output_table(const Table& table);
+    void output_csv_row(const Row& row, const std::vector<std::string>& cols);
 };
 
 #endif
