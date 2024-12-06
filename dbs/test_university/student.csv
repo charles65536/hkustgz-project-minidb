@@ -1,0 +1,6 @@
+ID,Name,GPA,Major
+INTEGER,TEXT,FLOAT,TEXT
+1,Alice Johnson,4.00,Computer Science
+2,Bob Smith,3.60,Electrical Engineering
+3,Catherine Lee,3.90,Mathematics
+5,Eva White,3.80,Chemistry

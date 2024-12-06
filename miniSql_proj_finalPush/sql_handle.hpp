@@ -12,6 +12,8 @@
 #include <sstream>
 #include <regex>
 #include <unordered_set>
+#include <optional>
+
 
 namespace token {
     class Token {
@@ -59,24 +61,46 @@ namespace token {
     };
 }
 
+// Declare but don't define
+extern const std::unordered_set<std::string> KEYWORDS;
 std::string cleanse(std::string input);
 token::TokenList tokenize(const std::string& input);
-extern const std::unordered_set<std::string> KEYWORDS;
 
 class SqlInterpreter {
 public:
+    
     token::TokenList tokens;
     token::TokenList::iterator cursor;
     std::shared_ptr<Database> current_db;
+    std::string current_db_name;
     std::ofstream* output = nullptr;
     DiskStorage storage;
     
-    const token::TokenPtr& peek();
     
-    template<typename T>
-    T read_token();
+    const token::TokenPtr& peek() {
+        if (cursor == tokens.end()) {
+            throw std::runtime_error("Unexpected end of input");
+        }
+        return *cursor;
+    }
 
-    void expect(const std::string& str);
+    template<typename T>
+    T read_token() {
+        if (cursor == tokens.end()) {
+            throw std::runtime_error("Unexpected end of input");
+        }
+        
+        auto token = std::dynamic_pointer_cast<T>(peek());
+        if (!token) {
+            throw std::bad_cast();
+        }
+        
+        cursor++;
+        return *token;
+    }
+
+
+    void expect(const std::string& str, const std::string& errormsg="");
     
     // Statement parsers
     void execute(const std::string& sql);
@@ -97,7 +121,22 @@ public:
     std::vector<std::string> read_select_list();
     std::vector<CellData> read_values();
     NamedVector<ExprPtr> read_set();
-
+    
+    
+    ~SqlInterpreter() {
+        close_database();
+    }
+    
+        // Add method to properly close current database
+    void close_database() {
+        if (current_db) {
+            storage.save_database(*current_db, current_db_name);
+            current_db = nullptr;
+            current_db_name = "";
+        }
+    }
+    
+    std::vector<Table> outputTables;
     // Output handling
     void set_output(std::ofstream& out);
     void output_table(const Table& table);

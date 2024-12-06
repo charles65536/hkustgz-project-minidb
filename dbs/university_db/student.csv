@@ -1,0 +1,4 @@
+ID,Name,GPA,Major
+INTEGER,TEXT,FLOAT,TEXT
+1001,Taylor Swift,3.80,Data Science
+1002,Bob Dylan,3.50,Financial Technology

@@ -1,0 +1,6 @@
+StudentID,Course
+INTEGER,TEXT
+1001,Data Science
+1001,Machine Learning
+1002,Financial Technology
+1002,Advanced Algorithms

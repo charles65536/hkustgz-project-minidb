@@ -8,6 +8,15 @@
 #include "sql_handle.hpp"
 
 
+
+
+const std::unordered_set<std::string> KEYWORDS = {
+    "CREATE", "DROP", "USE", "DATABASE", "TABLE",
+    "INSERT", "INTO", "VALUES", "DELETE", "FROM",
+    "UPDATE", "SET", "SELECT", "WHERE", "INTEGER",
+    "FLOAT", "TEXT"
+};
+
 std::string cleanse(std::string input) {
     std::stringstream ss;
     bool in_quote = false;
@@ -22,12 +31,14 @@ std::string cleanse(std::string input) {
         }
         
         if (in_quote) {
-            if (c == ' ') ss << '_';
+            if (c == ' ' || c == '\n') ss << '_';
             else ss << c;
             continue;
         }
         
-        if (std::string("()+-*/,;=<>").find(c) != std::string::npos) {
+        if (c == '\n') {
+            ss << ' ';
+        } else if (std::string("()+-*/,;=<>").find(c) != std::string::npos) {
             ss << ' ' << c << ' ';
         } else {
             ss << c;
@@ -36,10 +47,6 @@ std::string cleanse(std::string input) {
     
     return ss.str();
 }
-
-
-extern const std::unordered_set<std::string> KEYWORDS;
-
 token::TokenList tokenize(const std::string& input) {
     token::TokenList tokens;
     std::istringstream iss(input);
@@ -78,24 +85,49 @@ token::TokenList tokenize(const std::string& input) {
     return tokens;
 }
 
+
 ExprPtr SqlInterpreter::read_expr() {
     auto start = cursor;
     int paren_cnt = 0;
-    
+
     while (cursor != tokens.end()) {
-        if (typeid(*peek()) == typeid(token::Punctuation)) {
-            auto p = std::dynamic_pointer_cast<token::Punctuation>(peek())->str();
-            if (p == "(") paren_cnt++;
-            else if (p == ")") {
+        auto& token = *cursor;
+        
+        if (typeid(*token) == typeid(token::Punctuation)) {
+            auto p = std::dynamic_pointer_cast<token::Punctuation>(token)->str();
+            if (p == "(") {
+                paren_cnt++;
+            } else if (p == ")") {
                 paren_cnt--;
                 if (paren_cnt < 0) break;
+            } else if (p == ";" || p == ",") {
+                break;
             }
+        } else if (paren_cnt == 0 &&
+                  !(typeid(*token) == typeid(token::Identifier) ||
+                    typeid(*token) == typeid(token::Literal) ||
+                    typeid(*token) == typeid(token::Operator))) {
+            break;
         }
         cursor++;
     }
     
-    auto end = cursor;
-    return parse_expr_range(start, end);  // cursor already at right position
+    return parse_expr_range(start, cursor);
+}
+
+ExprPtr SqlInterpreter::read_condition() {
+    ExprPtr condition = read_expr();
+    
+    if (cursor != tokens.end() && typeid(*peek()) == typeid(token::Keyword)) {
+        auto op = std::dynamic_pointer_cast<token::Keyword>(peek())->str();
+        if (op == "AND" || op == "OR") {
+            cursor++;
+            ExprPtr right = read_expr();
+            return op == "AND" ? condition && right : condition || right;
+        }
+    }
+    
+    return condition;
 }
 
 ExprPtr SqlInterpreter::parse_expr_range(token::TokenList::iterator start, token::TokenList::iterator end) {
@@ -271,8 +303,8 @@ NamedVector<ExprPtr> SqlInterpreter::read_set() {
        auto col = std::dynamic_pointer_cast<token::Identifier>(peek())->str();
        cursor++;
        
-       if (std::dynamic_pointer_cast<token::Keyword>(peek())->str() != "INTO") {
-           throw std::runtime_error("Expected INTO after column name");
+       if (std::dynamic_pointer_cast<token::Operator>(peek())->str() != "=") {
+           throw std::runtime_error("Expected = after column name");
        }
        cursor++;
        
@@ -292,7 +324,8 @@ NamedVector<ExprPtr> SqlInterpreter::read_set() {
 
 // sql_handle.cpp
 void SqlInterpreter::execute(const std::string& sql) {
-    tokens = tokenize(sql);
+    outputTables.clear();
+    tokens = tokenize(cleanse(sql));
     cursor = tokens.begin();
     
     while (cursor != tokens.end()) {
@@ -303,6 +336,7 @@ void SqlInterpreter::execute(const std::string& sql) {
         auto cmd = std::dynamic_pointer_cast<token::Keyword>(peek())->str();
         cursor++;
         
+         // the output is set to None at beginning of commands. SELECT sets it to result at the end.
         if (cmd == "CREATE") parse_create();
         else if (cmd == "USE") parse_use();
         else if (cmd == "DROP") parse_drop();
@@ -315,37 +349,219 @@ void SqlInterpreter::execute(const std::string& sql) {
 }
 
 void SqlInterpreter::parse_create() {
-    auto type = read_token<token::Keyword>().str();
-    
-    if (type == "DATABASE") {
-        auto name = read_token<token::Identifier>().str();
-        expect(";");
-        storage.create_database(name);
+    try {
+        auto type = read_token<token::Keyword>().str();
+        if (type == "DATABASE") {
+            auto name = read_token<token::Identifier>().str();
+            expect(";", "Missing semicolon after CREATE DATABASE");
+            
+            // Just create the database, don't select it
+            storage.create_database(name);
+            // Remove the automatic selection I had incorrectly added before
+            // current_db = storage.create_database(name);
+            // current_db_name = name;
+        }
+        else if (type == "TABLE") {
+            if (!current_db) throw std::runtime_error("No database selected");
+            auto name = read_token<token::Identifier>().str();
+            auto schema = read_schema();
+            expect(";", "Missing semicolon after CREATE TABLE");
+            current_db->create_table(name, schema);
+            
+            // Save database after creating new table
+            storage.save_database(*current_db, current_db_name);
+        }
+        else throw std::runtime_error("Expected DATABASE or TABLE after CREATE");
+    } catch (const std::bad_cast&) {
+        throw std::runtime_error("Invalid CREATE syntax");
     }
-    else if (type == "TABLE") {
-        if (!current_db) throw std::runtime_error("No database selected");
-        auto name = read_token<token::Identifier>().str();
-        auto schema = read_schema();
-        expect(";");
-        current_db->create_table(name, schema);
-    }
-    else throw std::runtime_error("Expected DATABASE or TABLE after CREATE");
 }
 
 void SqlInterpreter::parse_use() {
-    if (read_token<token::Keyword>().str() != "DATABASE") {
-        throw std::runtime_error("Expected DATABASE after USE");
+    try {
+        expect("DATABASE", "Expected DATABASE after USE");
+        auto name = read_token<token::Identifier>().str();
+        expect(";", "Missing semicolon after USE DATABASE");
+        
+        // Close and save current database before loading new one
+        close_database();
+        
+        // Load new database and store its name
+        current_db = storage.load_database(name);
+        current_db_name = name;
+    } catch (const std::bad_cast&) {
+        throw std::runtime_error("Invalid USE syntax");
     }
-    auto name = read_token<token::Identifier>().str();
-    expect(";");
-    current_db = storage.load_database(name);
 }
 
-void SqlInterpreter::expect(const std::string& str) {
-    if (cursor == tokens.end() || peek()->str() != str) {
-        throw std::runtime_error("Expected: " + str);
+void SqlInterpreter::parse_drop() {
+    try {
+        auto type = read_token<token::Keyword>().str();
+        if (type == "DATABASE") {
+            auto name = read_token<token::Identifier>().str();
+            expect(";", "Missing semicolon after DROP DATABASE");
+            storage.delete_database(name);
+        }
+        else if (type == "TABLE") {
+            if (!current_db) throw std::runtime_error("No database selected");
+            auto name = read_token<token::Identifier>().str();
+            expect(";", "Missing semicolon after DROP TABLE");
+            current_db->drop_table(name);
+        }
+        else throw std::runtime_error("Expected DATABASE or TABLE after DROP");
+    } catch (const std::bad_cast&) {
+        throw std::runtime_error("Invalid DROP syntax");
+    }
+}
+
+void SqlInterpreter::parse_insert() {
+    try {
+        expect("INTO", "Expected INTO after INSERT");
+        auto table_name = read_token<token::Identifier>().str();
+        expect("VALUES", "Expected VALUES after table name");
+        auto values = read_values();
+        expect(";", "Missing semicolon after INSERT");
+
+        auto& table = current_db->get_table(table_name);
+        if (values.size() != table.schema.size()) {
+            throw std::runtime_error("Value count mismatch");
+        }
+
+        Row row(table.schema);
+        for (size_t i = 0; i < values.size(); i++) {
+            row.cells[table.schema.elements[i].name] = values[i];
+        }
+        table.append_row(row);
+    } catch (const std::bad_cast&) {
+        throw std::runtime_error("Invalid INSERT syntax");
+    }
+}
+
+void SqlInterpreter::parse_select() {
+    try {
+        std::vector<std::string> cols;
+        if (peek()->str() == "*") {
+            cursor++;
+        } else {
+            cols = read_select_list();
+        }
+        
+        expect("FROM", "Expected FROM after SELECT");
+        auto table_name = read_token<token::Identifier>().str();
+        
+        // Get initial table
+        auto& base_table = current_db->get_table(table_name);
+        Table result = base_table;  // Start with base table
+        
+        // Check for WHERE or INNER JOIN or semicolon
+        if (cursor != tokens.end()) {
+            if (peek()->str() == "INNER") {
+                cursor++;
+                expect("JOIN", "Expected JOIN after INNER");
+                
+                // Get the table to join with
+                auto join_table_name = read_token<token::Identifier>().str();
+                auto& join_table = current_db->get_table(join_table_name);
+                
+                expect("ON", "Expected ON after INNER JOIN table");
+                
+                // Read the join condition
+                ExprPtr join_condition = read_condition();
+                
+                // Perform the join and filter
+                result = result.join(join_table).where(join_condition);
+                
+                // Now look for WHERE or semicolon
+                if (cursor != tokens.end() && peek()->str() == "WHERE") {
+                    cursor++;
+                    ExprPtr where_condition = read_condition();
+                    result = result.where(where_condition);
+                }
+                
+                expect(";", "Missing semicolon after JOIN clause");
+            }
+            else if (peek()->str() == "WHERE") {
+                cursor++;
+                ExprPtr condition = read_condition();
+                result = result.where(condition);
+                expect(";", "Missing semicolon after WHERE clause");
+            }
+            else {
+                expect(";", "Missing semicolon after FROM clause");
+            }
+        }
+        
+        // Add result to output
+        if (cols.empty()) { // * case
+            outputTables.push_back(result);
+        } else {
+            outputTables.push_back(result.select(cols));
+        }
+        
+    } catch (const std::bad_cast&) {
+        throw std::runtime_error("Invalid SELECT syntax");
+    }
+}
+
+void SqlInterpreter::parse_update() {
+    try {
+        auto table_name = read_token<token::Identifier>().str();
+        expect("SET", "Expected SET after table name");
+        auto assignments = read_set();
+        
+        ExprPtr condition;
+        if (cursor != tokens.end() && peek()->str() == "WHERE") {
+            cursor++;
+            condition = read_condition();
+        }
+        expect(";", "Missing semicolon after UPDATE");
+
+        auto& table = current_db->get_table(table_name);
+        if (condition) {
+            table.update_where(condition, assignments);
+        } else {
+            table.update_where(literal(1), assignments);
+        }
+    } catch (const std::bad_cast&) {
+        throw std::runtime_error("Invalid UPDATE syntax");
+    }
+}
+
+void SqlInterpreter::parse_delete() {
+    try {
+        expect("FROM", "Expected FROM after DELETE");
+        auto table_name = read_token<token::Identifier>().str();
+        
+        ExprPtr condition;
+        if (cursor != tokens.end() && peek()->str() == "WHERE") {
+            cursor++;
+            condition = read_condition();
+        }
+        expect(";", "Missing semicolon after DELETE");
+
+        auto& table = current_db->get_table(table_name);
+        if (condition) {
+            table.delete_where(condition);
+        } else {
+            table.delete_where(literal(1));
+        }
+    } catch (const std::bad_cast&) {
+        throw std::runtime_error("Invalid DELETE syntax");
+    }
+}
+
+void SqlInterpreter::expect(const std::string& token_expected, const std::string& error_msg) {
+    if (cursor == tokens.end()) {
+        throw std::runtime_error(error_msg.empty() ?
+            "Unexpected end of input, expected: " + token_expected :
+            error_msg);
+    }
+    
+    if (peek()->str() != token_expected) {
+        throw std::runtime_error(error_msg.empty() ?
+            "Expected " + token_expected + ", found: " + peek()->str() :
+            error_msg);
     }
     cursor++;
 }
-
 

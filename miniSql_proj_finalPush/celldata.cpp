@@ -90,3 +90,23 @@ bool CellData::truthy() const {
 std::ostream& operator<<(std::ostream& os, const CellData& cell) {
     return os << static_cast<std::string>(cell);
 }
+
+
+DataType infer_datatype(const std::string& literal) {
+    try {
+        size_t pos;
+        std::stod(literal, &pos);
+        if (pos == literal.length()) {
+            return literal.find('.') == std::string::npos ? DataType::INTEGER : DataType::FLOAT;
+        }
+    } catch (...) {}
+    return DataType::TEXT;
+}
+
+CellData inferred_cell(const std::string& literal){
+    switch(infer_datatype(literal)) {
+        case DataType::INTEGER: return CellData(std::stoi(literal));
+        case DataType::FLOAT: return CellData(std::stod(literal));
+        default: return CellData(literal);
+    }
+}

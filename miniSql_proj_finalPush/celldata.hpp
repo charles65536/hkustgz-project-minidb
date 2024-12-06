@@ -50,23 +50,8 @@ private:
     std::string data_text;
 };
 
-DataType infer_datatype(const std::string& literal) {
-    try {
-        size_t pos;
-        std::stod(literal, &pos);
-        if (pos == literal.length()) {
-            return literal.find('.') == std::string::npos ? DataType::INTEGER : DataType::FLOAT;
-        }
-    } catch (...) {}
-    return DataType::TEXT;
-}
+DataType infer_datatype(const std::string& literal);
 
-CellData inferred_cell(const std::string& literal) {
-    switch(infer_datatype(literal)) {
-        case DataType::INTEGER: return CellData(std::stoi(literal));
-        case DataType::FLOAT: return CellData(std::stod(literal));
-        default: return CellData(literal);
-    }
-}
+CellData inferred_cell(const std::string& literal) ;
 
 #endif

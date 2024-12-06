@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		18EEFEAC2CFA05F700C4DA4F /* test.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 18EEFEAB2CFA05F700C4DA4F /* test.cpp */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXCopyFilesBuildPhase section */
 		18EEFE642CF899BB00C4DA4F /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
@@ -20,6 +24,8 @@
 
 /* Begin PBXFileReference section */
 		18EEFE662CF899BB00C4DA4F /* miniSql_proj_finalPush */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = miniSql_proj_finalPush; sourceTree = BUILT_PRODUCTS_DIR; };
+		18EEFEAA2CFA05F700C4DA4F /* test.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = test.hpp; path = miniSql_proj_finalPush/test.hpp; sourceTree = "<group>"; };
+		18EEFEAB2CFA05F700C4DA4F /* test.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test.cpp; path = miniSql_proj_finalPush/test.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -44,6 +50,8 @@
 		18EEFE5D2CF899BB00C4DA4F = {
 			isa = PBXGroup;
 			children = (
+				18EEFEAA2CFA05F700C4DA4F /* test.hpp */,
+				18EEFEAB2CFA05F700C4DA4F /* test.cpp */,
 				18EEFE682CF899BB00C4DA4F /* miniSql_proj_finalPush */,
 				18EEFE672CF899BB00C4DA4F /* Products */,
 			);
@@ -120,6 +128,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				18EEFEAC2CFA05F700C4DA4F /* test.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

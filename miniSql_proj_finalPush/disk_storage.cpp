@@ -8,7 +8,7 @@ void DiskStorage::save_database(Database db, std::string name) {
     fs::create_directories(db_path);
     
     for (auto& pair : db.tables) {
-        std::cout << "Saving table " << pair.first << " with " << pair.second.rows.size() << " rows\n";
+        //std::cout << "Saving table " << pair.first << " with " << pair.second.rows.size() << " rows\n";
         std::string table_path = (db_path / (pair.first + ".csv")).string();
         csv_dump(pair.second, table_path, true);
     }

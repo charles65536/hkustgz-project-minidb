@@ -1,41 +1,63 @@
-#include "disk_storage.hpp"
+#include "sql_handle.hpp"
+#include "csv_manip.hpp"
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <stdexcept>
+#include <string>
 
-void print_table_info(Table& table) {
-    std::cout << "Table " << table.name << " has " << table.rows.size() << " rows\n";
-}
+// Forward declarations
+//void run_tests(const std::string& program_path);  // Original test function
+void run_alternative_tests();  // New test2 function
 
-int main() {
-    DiskStorage storage;
-    Database db;
-    
-    Schema user_schema;
-    user_schema["id"] = DataType::INTEGER;
-    user_schema["name"] = DataType::TEXT;
-    user_schema["balance"] = DataType::FLOAT;
-    auto& users = db.create_table("users", user_schema);
-    
-    Row u1(user_schema);
-    u1.cells["id"] = CellData(1);
-    u1.cells["name"] = CellData("Alice");
-    u1.cells["balance"] = CellData(1000.50);
-    users.append_row(u1);
-    
-    Row u2(user_schema);
-    u2.cells["id"] = CellData(2);
-    u2.cells["name"] = CellData("Bob");
-    u2.cells["balance"] = CellData(2500.75);
-    users.append_row(u2);
-    
-    
-        std::cout << "After create: " << users.rows.size() << " rows\n";
+int main(int argc, char* argv[]) {
+    if (argc == 2) {
+        /*
+        if (std::string(argv[1]) == "test") {
+            run_tests(argv[0]);
+            return 0;
+        }
+         */
+        if (std::string(argv[1]) == "test2") {
+            run_alternative_tests();
+            return 0;
+        }
+    }
+
+    if (argc != 3) {
+        std::cerr << "Usage: " << argv[0] << " input.sql output.txt\n";
+        std::cerr << "   or: " << argv[0] << " test\n";
+        std::cerr << "   or: " << argv[0] << " test2\n";
+        return 1;
+    }
+
+    try {
+        std::ifstream sql_file(argv[1], std::ios::binary);
+        if (!sql_file) {
+            throw std::runtime_error("Could not open input file " + std::string(argv[1]));
+        }
+        std::stringstream buffer;
+        buffer << sql_file.rdbuf();
         
-        users.append_row(u1);
-        std::cout << "After append 1: " << users.rows.size() << " rows\n";
-        
-        users.append_row(u2);
-        std::cout << "After append 2: " << users.rows.size() << " rows\n";
-        
-        std::cout << "Table in db before save: " << db.tables["users"].rows.size() << " rows\n";
-        storage.save_database(db, "testdb");
+        std::ofstream output(argv[2]);
+        if (!output) {
+            throw std::runtime_error("Could not open output file " + std::string(argv[2]));
+        }
+
+        SqlInterpreter interpreter;
+        interpreter.execute(buffer.str());
+
+        // Simplified output handling
+        for (const auto& table : interpreter.outputTables) {
+            output << csv_dumps(table, false, true);
+            output << "---\n";
+        }
+
+
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << "\n";
+        return 1;
+    }
+
+    return 0;
 }

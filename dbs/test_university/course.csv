@@ -1,0 +1,6 @@
+CourseID,CourseName,Department
+INTEGER,TEXT,TEXT
+101,Introduction to Computer Science,Computer Science
+102,Circuit Analysis,Electrical Engineering
+103,Linear Algebra,Mathematics
+105,Organic Chemistry,Chemistry
