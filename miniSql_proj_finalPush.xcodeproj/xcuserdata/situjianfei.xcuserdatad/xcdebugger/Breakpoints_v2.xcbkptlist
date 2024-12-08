@@ -20,5 +20,51 @@
             landmarkType = "0">
          </BreakpointContent>
       </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "76E961C7-1A51-44BD-B192-7143760AA7F3"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "miniSql_proj_finalPush/main.cpp"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "49"
+            endingLineNumber = "49"
+            landmarkName = "main(argc, argv)"
+            landmarkType = "9">
+            <Locations>
+               <Location
+                  uuid = "76E961C7-1A51-44BD-B192-7143760AA7F3 - 522c3d7809e7226b"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "main"
+                  moduleName = "miniSql_proj_finalPush"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/situjianfei/Programming/ccpc/school_cpp/miniSql_proj_finalPush/miniSql_proj_finalPush/main.cpp"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "51"
+                  endingLineNumber = "51">
+               </Location>
+               <Location
+                  uuid = "76E961C7-1A51-44BD-B192-7143760AA7F3 - 522c3d7809e7226b"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "main"
+                  moduleName = "miniSql_proj_finalPush"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/situjianfei/Programming/ccpc/school_cpp/miniSql_proj_finalPush/miniSql_proj_finalPush/main.cpp"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "51"
+                  endingLineNumber = "51">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
    </Breakpoints>
 </Bucket>

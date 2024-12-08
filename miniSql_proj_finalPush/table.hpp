@@ -11,9 +11,12 @@ public:
     std::string name;
     Schema schema;
     std::list<Row> rows;
+    bool isJoinedTable;
     
+    Table(std::string name, Schema schema, bool isJoined = false)
+            : name(std::move(name)), schema(std::move(schema)), isJoinedTable(isJoined) {}
+        
     Table() = default;
-    Table(std::string name, Schema schema);
     
     // Copy/Move semantics
     Table(const Table& other);

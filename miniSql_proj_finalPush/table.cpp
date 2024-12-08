@@ -2,7 +2,6 @@
 
 #include "table.hpp"
 
-Table::Table(std::string name, Schema schema) : name(name), schema(schema) {}
 
 Table::Table(const Table& other) : name(other.name), schema(other.schema), rows(other.rows) {}
 
@@ -85,31 +84,38 @@ Table Table::select(std::vector<std::string> cols) {
     return result;
 }
 
-// table.cpp
 Table Table::join(Table& other) {
-    Schema joined_schema;
+    Schema result_schema;
     
-    for (const auto& elem : schema.elements) {
-        joined_schema[name + "." + elem.name] = elem.value;
+    // Handle left table columns
+    for(const auto& elem : schema.elements) {
+        std::string prefix = isJoinedTable ? "" : (name + ".");
+        result_schema[prefix + elem.name] = elem.value;
     }
-    for (const auto& elem : other.schema.elements) {
-        joined_schema[other.name + "." + elem.name] = elem.value;
+    
+    // Handle right table columns
+    for(const auto& elem : other.schema.elements) {
+        std::string prefix = other.isJoinedTable ? "" : (other.name + ".");
+        result_schema[prefix + elem.name] = elem.value;
     }
     
-    Table joined(name + "_x_" + other.name, joined_schema);
+    Table result(name + "_" + other.name, result_schema, true);  // Mark as joined
     
-    for (auto& row1 : rows) {
-        for (auto& row2 : other.rows) {
-            Row joined_row(joined_schema);
-            for (const auto& elem : schema.elements) {
-                joined_row.cells[name + "." + elem.name] = row1.cells[elem.name];
+    for(auto& row1 : rows) {
+        for(auto& row2 : other.rows) {
+            Row combined_row(result_schema);
+            // Copy data using the same prefixing logic
+            for(const auto& elem : schema.elements) {
+                std::string prefix = isJoinedTable ? "" : (name + ".");
+                combined_row[prefix + elem.name] = row1[elem.name];
             }
-            for (const auto& elem : other.schema.elements) {
-                joined_row.cells[other.name + "." + elem.name] = row2.cells[elem.name];
+            for(const auto& elem : other.schema.elements) {
+                std::string prefix = other.isJoinedTable ? "" : (other.name + ".");
+                combined_row[prefix + elem.name] = row2[elem.name];
             }
-            joined.rows.push_back(joined_row);
+            result.rows.push_back(combined_row);
         }
     }
     
-    return joined;
+    return result;
 }
